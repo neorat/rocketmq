@@ -29,6 +29,9 @@ import org.apache.rocketmq.common.message.MessageQueue;
 
 public class RebalanceLockManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.REBALANCE_LOCK_LOGGER_NAME);
+    /**
+     * 队列被锁最大时间（超过则可以被其他的同组消费端占用）
+     */
     private final static long REBALANCE_LOCK_MAX_LIVE_TIME = Long.parseLong(System.getProperty(
         "rocketmq.broker.rebalance.lockMaxLiveTime", "60000"));
     private final Lock lock = new ReentrantLock();
@@ -109,6 +112,7 @@ public class RebalanceLockManager {
 
                 return locked;
             }
+            //为什么在锁资源为空的时候，不在这里直接初始化一个资源呢？单一职责的原则？
         }
 
         return false;
@@ -120,18 +124,24 @@ public class RebalanceLockManager {
         Set<MessageQueue> notLockedMqs = new HashSet<MessageQueue>(mqs.size());
 
         for (MessageQueue mq : mqs) {
+            //尝试锁定
             if (this.isLocked(group, mq, clientId)) {
+                //锁定成功
                 lockedMqs.add(mq);
             } else {
+                //锁定失败
                 notLockedMqs.add(mq);
             }
         }
 
+        //存在锁定失败的队列
         if (!notLockedMqs.isEmpty()) {
             try {
                 this.lock.lockInterruptibly();
                 try {
+                    //一个消费组下，每个队列对应一个锁资源
                     ConcurrentHashMap<MessageQueue, LockEntry> groupValue = this.mqLockTable.get(group);
+                    //为空，则表明此消费组第一次被请求锁定
                     if (null == groupValue) {
                         groupValue = new ConcurrentHashMap<>(32);
                         this.mqLockTable.put(group, groupValue);
@@ -140,6 +150,7 @@ public class RebalanceLockManager {
                     for (MessageQueue mq : notLockedMqs) {
                         LockEntry lockEntry = groupValue.get(mq);
                         if (null == lockEntry) {
+                            //初始化锁资源，设定资源(当前消费组的指定队列)占用者：客户端ID
                             lockEntry = new LockEntry();
                             lockEntry.setClientId(clientId);
                             groupValue.put(mq, lockEntry);
@@ -150,6 +161,7 @@ public class RebalanceLockManager {
                                 mq);
                         }
 
+                        //重新尝试上锁
                         if (lockEntry.isLocked(clientId)) {
                             lockEntry.setLastUpdateTimestamp(System.currentTimeMillis());
                             lockedMqs.add(mq);

@@ -17,6 +17,8 @@
 package org.apache.rocketmq.example.quickstart;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
@@ -35,8 +37,8 @@ public class Consumer {
         /*
          * Instantiate with specified consumer group name.
          */
-        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("please_rename_unique_group_name_4");
-
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("quickstart_group_consumer");
+        consumer.setNamesrvAddr("localhost:9876");
         /*
          * Specify name server addresses.
          * <p/>
@@ -53,12 +55,15 @@ public class Consumer {
          * Specify where to start in case the specified consumer group is a brand new one.
          */
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
+        consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET);
+        consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_TIMESTAMP);
 
         /*
          * Subscribe one more more topics to consume.
          */
         consumer.subscribe("TopicTest", "*");
 
+        AtomicInteger msgCounter = new AtomicInteger(0);
         /*
          *  Register callback to execute on arrival of messages fetched from brokers.
          */
@@ -67,7 +72,8 @@ public class Consumer {
             @Override
             public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs,
                 ConsumeConcurrentlyContext context) {
-                System.out.printf("%s Receive New Messages: %s %n", Thread.currentThread().getName(), msgs);
+                System.out.printf("%s,total=%d Receive New Messages: %s %n", Thread.currentThread().getName(),msgCounter.incrementAndGet(), msgs);
+
                 return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             }
         });

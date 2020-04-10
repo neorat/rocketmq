@@ -16,9 +16,6 @@
  */
 package org.apache.rocketmq.example.ordermessage;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.listener.ConsumeOrderlyContext;
 import org.apache.rocketmq.client.consumer.listener.ConsumeOrderlyStatus;
@@ -26,44 +23,43 @@ import org.apache.rocketmq.client.consumer.listener.MessageListenerOrderly;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 import org.apache.rocketmq.common.message.MessageExt;
+import org.apache.rocketmq.remoting.common.RemotingHelper;
 
-public class Consumer {
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+public class OrderConsumer {
 
     public static void main(String[] args) throws MQClientException {
-        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("ordered_group_name_consumer");
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("ordered_group_name_consumer2");
         consumer.setNamesrvAddr("localhost:9876");
-
+        consumer.setConsumeThreadMin(10);
+        consumer.setConsumeThreadMax(10);
+//        consumer.setConsumeTimeout(100);
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
 
-//        consumer.subscribe("OrderTopicTest", "TagA || TagC || TagD");
-        consumer.subscribe("OrderTopicTest", "TagA");
+        consumer.subscribe("TradeOrderTopic", "tags");
 
         //多线程消费，同队列内也无序
         consumer.registerMessageListener(new MessageListenerOrderly() {
-            AtomicLong consumeTimes = new AtomicLong(0);
 
             @Override
             public ConsumeOrderlyStatus consumeMessage(List<MessageExt> msgs, ConsumeOrderlyContext context) {
-                context.setAutoCommit(true);
-                System.out.printf("%s Receive New Messages: %s %n", Thread.currentThread().getName(), msgs);
-                if (msgs.size() > 0) {
-                    MessageExt messageExt = msgs.get(0);
-                    System.out.printf("%s INFO[%d]: tags=%s key=%s broker=%s queueid=%d body=%s %n", Thread.currentThread().getName(), msgs.size(),
-                        messageExt.getTags(),messageExt.getKeys(),messageExt.getBrokerName(),messageExt.getQueueId(),new String(messageExt.getBody(), StandardCharsets.UTF_8));
-                }
-
-                this.consumeTimes.incrementAndGet();
-                if ((this.consumeTimes.get() % 2) == 0) {
+                if (msgs == null || msgs.isEmpty()){
                     return ConsumeOrderlyStatus.SUCCESS;
-                } else if ((this.consumeTimes.get() % 3) == 0) {
-                    return ConsumeOrderlyStatus.ROLLBACK;
-                } else if ((this.consumeTimes.get() % 4) == 0) {
-                    return ConsumeOrderlyStatus.COMMIT;
-                } else if ((this.consumeTimes.get() % 5) == 0) {
-                    context.setSuspendCurrentQueueTimeMillis(3000);
-                    return ConsumeOrderlyStatus.SUSPEND_CURRENT_QUEUE_A_MOMENT;
                 }
-
+                //设置自动提交
+                context.setAutoCommit(true);
+                msgs.stream()
+                    .forEach(msg -> {
+                        try {
+                            String messageBody = new String(msg.getBody(), RemotingHelper.DEFAULT_CHARSET);
+                            System.out.println("Handle Order Message: t: " +  Thread.currentThread().getName() + ",keys: " + msg.getKeys() + ",messageBody: " + messageBody);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 return ConsumeOrderlyStatus.SUCCESS;
             }
         });

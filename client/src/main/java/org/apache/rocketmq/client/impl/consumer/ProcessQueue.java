@@ -135,9 +135,11 @@ public class ProcessQueue {
                     if (null == old) {
                         validMsgCnt++;
                         this.queueOffsetMax = msg.getQueueOffset();
+                        //累计未消费消息body字节数
                         msgSize.addAndGet(msg.getBody().length);
                     }
                 }
+                //累计消费消息条数
                 msgCount.addAndGet(validMsgCnt);
 
                 if (!msgTreeMap.isEmpty() && !this.consuming) {
