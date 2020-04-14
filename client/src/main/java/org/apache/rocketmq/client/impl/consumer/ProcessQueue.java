@@ -46,7 +46,13 @@ public class ProcessQueue {
     private final InternalLogger log = ClientLogger.getLog();
     private final ReadWriteLock lockTreeMap = new ReentrantReadWriteLock();
     private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<Long, MessageExt>();
+    /**
+     * 当前处理队列已拉取，未消费消息数
+     */
     private final AtomicLong msgCount = new AtomicLong();
+    /**
+     * 当前处理队列已拉取，未消费消息字节大小
+     */
     private final AtomicLong msgSize = new AtomicLong();
     private final Lock lockConsume = new ReentrantLock();
     /**
@@ -124,22 +130,31 @@ public class ProcessQueue {
         }
     }
 
+    /**
+     * 存入等待消费消息到处理队列（写锁，更新计数，字节数）
+     * @param msgs
+     * @return
+     */
     public boolean putMessage(final List<MessageExt> msgs) {
         boolean dispatchToConsume = false;
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();
             try {
+                //本次新增有效消息计数
                 int validMsgCnt = 0;
                 for (MessageExt msg : msgs) {
+                    //以offset升序存入新拉取到的，本地过滤后的消息
                     MessageExt old = msgTreeMap.put(msg.getQueueOffset(), msg);
                     if (null == old) {
+                        //计算有效消息数（不包含覆盖的）
                         validMsgCnt++;
+                        //本处理队列中的最大offset
                         this.queueOffsetMax = msg.getQueueOffset();
                         //累计未消费消息body字节数
                         msgSize.addAndGet(msg.getBody().length);
                     }
                 }
-                //累计消费消息条数
+                //增加等待消费消息条数
                 msgCount.addAndGet(validMsgCnt);
 
                 if (!msgTreeMap.isEmpty() && !this.consuming) {
@@ -259,11 +274,16 @@ public class ProcessQueue {
         }
     }
 
+    /**
+     * 消费成功，提交
+     * @return
+     */
     public long commit() {
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();
             try {
                 Long offset = this.consumingMsgOrderlyTreeMap.lastKey();
+                //
                 msgCount.addAndGet(0 - this.consumingMsgOrderlyTreeMap.size());
                 for (MessageExt msg : this.consumingMsgOrderlyTreeMap.values()) {
                     msgSize.addAndGet(0 - msg.getBody().length);

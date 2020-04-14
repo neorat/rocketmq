@@ -67,6 +67,13 @@ public class PullAPIWrapper {
         this.unitMode = unitMode;
     }
 
+    /**
+     * 对返回的消息集合做解码，根据tag再次过滤，然后填充部分属性
+     * @param mq
+     * @param pullResult
+     * @param subscriptionData
+     * @return
+     */
     public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult,
         final SubscriptionData subscriptionData) {
         PullResultExt pullResultExt = (PullResultExt) pullResult;
@@ -74,8 +81,10 @@ public class PullAPIWrapper {
         this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
         if (PullStatus.FOUND == pullResult.getPullStatus()) {
             ByteBuffer byteBuffer = ByteBuffer.wrap(pullResultExt.getMessageBinary());
+            //1、解码消息
             List<MessageExt> msgList = MessageDecoder.decodes(byteBuffer);
 
+            //2、根据tag集合两次过滤
             List<MessageExt> msgListFilterAgain = msgList;
             if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
                 msgListFilterAgain = new ArrayList<MessageExt>(msgList.size());
@@ -88,6 +97,7 @@ public class PullAPIWrapper {
                 }
             }
 
+            //执行钩子程序，作用？
             if (this.hasHook()) {
                 FilterMessageContext filterMessageContext = new FilterMessageContext();
                 filterMessageContext.setUnitMode(unitMode);
@@ -95,6 +105,7 @@ public class PullAPIWrapper {
                 this.executeHook(filterMessageContext);
             }
 
+            //对过滤后的，满足要求的tag的消息做属性填充：transactionId/minOffset/maxOffset/brokerName
             for (MessageExt msg : msgListFilterAgain) {
                 String traFlag = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
                 if (Boolean.parseBoolean(traFlag)) {
