@@ -106,6 +106,7 @@ public class PullAPIWrapper {
             }
 
             //对过滤后的，满足要求的tag的消息做属性填充：transactionId/minOffset/maxOffset/brokerName
+            //其中minOffset/maxOffset为broker端的最小，最大offset
             for (MessageExt msg : msgListFilterAgain) {
                 String traFlag = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
                 if (Boolean.parseBoolean(traFlag)) {
