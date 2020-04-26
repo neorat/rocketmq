@@ -45,6 +45,11 @@ public class TopAddressing {
         this.unitName = unitName;
     }
 
+    /**
+     * 删除换行符
+     * @param str
+     * @return
+     */
     private static String clearNewLine(final String str) {
         String newString = str.trim();
         int index = newString.indexOf("\r");
@@ -64,6 +69,12 @@ public class TopAddressing {
         return fetchNSAddr(true, 3000);
     }
 
+    /**
+     * 通过http协议远程NameServer地址
+     * @param verbose
+     * @param timeoutMills
+     * @return
+     */
     public final String fetchNSAddr(boolean verbose, long timeoutMills) {
         String url = this.wsAddr;
         try {

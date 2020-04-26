@@ -187,7 +187,7 @@ public class ProcessQueue {
     /**
      * 把刚刚拉取的消息存入到等待消费处理队列（上写锁，更新计数，字节数）
      * @param msgs
-     * @return 顺序消费有用，返回true表示可以消费
+     * @return 顺序消费模式，返回true表示可以消费
      */
     public boolean putMessage(final List<MessageExt> msgs) {
         // 返回值，顺序消费有用，返回true表示可以消费

@@ -463,6 +463,19 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         this.pullAsyncImpl(mq, subscriptionData, offset, maxNums, pullCallback, false, timeout);
     }
 
+    /**
+     * 异步去远程拉取消息
+     * @param mq
+     * @param subscriptionData
+     * @param offset
+     * @param maxNums
+     * @param pullCallback
+     * @param block
+     * @param timeout
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws InterruptedException
+     */
     private void pullAsyncImpl(
         final MessageQueue mq,
         final SubscriptionData subscriptionData,
@@ -513,6 +526,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
                     @Override
                     public void onSuccess(PullResult pullResult) {
+                        //对返回的消息集合做解码，根据tag再次过滤，然后填充部分属性
                         PullResult userPullResult = DefaultMQPullConsumerImpl.this.pullAPIWrapper.processPullResult(mq, pullResult, subscriptionData);
                         resetTopic(userPullResult.getMsgFoundList());
                         pullCallback.onSuccess(userPullResult);

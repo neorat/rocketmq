@@ -142,6 +142,7 @@ public class PullConsumerImpl implements PullConsumer {
     }
 
     private void registerPullTaskCallback(final String targetQueueName) {
+        //注册拉取消息回调
         this.pullConsumerScheduleService.registerPullTaskCallback(targetQueueName, new PullTaskCallback() {
             @Override
             public void doPullTask(final MessageQueue mq, final PullTaskContext context) {

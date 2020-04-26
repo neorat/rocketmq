@@ -21,6 +21,9 @@ import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+/**
+ * 根据tagcode过滤，要么是通配符则全通过
+ */
 public class DefaultMessageFilter implements MessageFilter {
 
     private SubscriptionData subscriptionData;
